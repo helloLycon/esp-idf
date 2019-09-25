@@ -1,3 +1,6 @@
+# helloLycon append
+*.si4project/
+
 .config
 *.o
 *.pyc
