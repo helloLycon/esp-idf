@@ -265,6 +265,8 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
     }
 }
 
+static esp_bd_addr_t remote_bda = {0};
+
 void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
     esp_gatt_status_t status = ESP_GATT_OK;
     if (param->write.need_rsp){
@@ -315,6 +317,10 @@ void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare
             }
 
             esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, NULL);
+
+            /* disconnect after operation */
+            ESP_LOGI("------>", "disconnect\n");
+            esp_ble_gap_disconnect(remote_bda);
         }
     }
 }
@@ -565,6 +571,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
         gl_profile_tab[PROFILE_A_APP_ID].conn_id = param->connect.conn_id;
         //start sent the update connection parameters to the peer device.
+        memcpy(remote_bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
         esp_ble_gap_update_conn_params(&conn_params);
         break;
     }
@@ -713,6 +720,7 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                  param->connect.conn_id,
                  param->connect.remote_bda[0], param->connect.remote_bda[1], param->connect.remote_bda[2],
                  param->connect.remote_bda[3], param->connect.remote_bda[4], param->connect.remote_bda[5]);
+        memcpy(remote_bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
         gl_profile_tab[PROFILE_B_APP_ID].conn_id = param->connect.conn_id;
         break;
     case ESP_GATTS_CONF_EVT:
