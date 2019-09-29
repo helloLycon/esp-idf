@@ -34,6 +34,8 @@
 #include "esp_gatt_common_api.h"
 
 #include "sdkconfig.h"
+#include "driver/gpio.h"
+#include "gatts_demo_gpio.h"
 
 #define GATTS_TAG "GATTS_DEMO"
 
@@ -51,7 +53,7 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
 #define GATTS_DESCR_UUID_TEST_B     0x2222
 #define GATTS_NUM_HANDLE_TEST_B     4
 
-#define TEST_DEVICE_NAME            "ESP_GATTS_DEMO"
+#define TEST_DEVICE_NAME            "ESP_GATTS_DEMOooooo"
 #define TEST_MANUFACTURER_DATA_LEN  17
 
 #define GATTS_DEMO_CHAR_VAL_LEN_MAX 0x40
@@ -302,6 +304,16 @@ void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare
             prepare_write_env->prepare_len += param->write.len;
 
         }else{
+            const uint8_t *value = param->write.value;
+            const uint16_t len = param->write.len;
+            esp_log_buffer_hex("Received", value, len);
+            /* set gpio */
+            if(*value) {
+                gpio_set_level(GPIO_NUM_18, 1);
+            } else {
+                gpio_set_level(GPIO_NUM_18, 0);
+            }
+
             esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, NULL);
         }
     }
@@ -413,7 +425,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
             esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
         
             int char_idx = get_char_idx(NULL, NULL, &param->write.handle);
-            ESP_LOGI(GATTS_TAG, "char_idx = %d\n", char_idx);
+            //ESP_LOGI(GATTS_TAG, "char_idx = %d\n", char_idx);
             if (char_idx >= 0 && param->write.len == 2){
                 /* char found */
                 uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
@@ -811,5 +823,6 @@ void app_main()
         ESP_LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
 
+    gatts_demo_gpio_init();
     return;
 }
