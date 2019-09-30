@@ -312,6 +312,8 @@ void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare
             /* set gpio */
             if(*value) {
                 gpio_set_level(GPIO_NUM_18, 1);
+                vTaskDelay(1000 / portTICK_RATE_MS);
+                gpio_set_level(GPIO_NUM_18, 0);
             } else {
                 gpio_set_level(GPIO_NUM_18, 0);
             }
@@ -319,8 +321,8 @@ void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare
             esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, NULL);
 
             /* disconnect after operation */
-            ESP_LOGI("------>", "disconnect\n");
-            esp_ble_gap_disconnect(remote_bda);
+            //ESP_LOGI("------>", "disconnect\n");
+            //esp_ble_gap_disconnect(remote_bda);
         }
     }
 }

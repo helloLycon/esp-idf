@@ -73,6 +73,8 @@ void gatts_demo_gpio_init(void)
     //configure GPIO with the given settings
     gpio_config(&io_conf);
 
+    gpio_set_level(GPIO_NUM_18, 0);
+
 #if  0
     //interrupt of rising edge
     io_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
