@@ -16,7 +16,6 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "tcpip_adapter.h"
-#include "protocol_examples_common.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -24,10 +23,11 @@
 #include <lwip/netdb.h>
 
 
-#define PORT CONFIG_EXAMPLE_PORT
+#define PORT 5000
 
 static const char *TAG = "example";
 
+void softap_app_main();
 
 static void tcp_server_task(void *pvParameters)
 {
@@ -138,7 +138,8 @@ void app_main()
      * Read "Establishing Wi-Fi or Ethernet Connection" section in
      * examples/protocols/README.md for more information about this function.
      */
-    ESP_ERROR_CHECK(example_connect());
+    //ESP_ERROR_CHECK(example_connect());
+    softap_app_main();
 
     xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 5, NULL);
 }
