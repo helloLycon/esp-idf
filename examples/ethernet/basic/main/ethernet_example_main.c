@@ -16,6 +16,9 @@
 #include "esp_log.h"
 #include "sdkconfig.h"
 
+
+#define CONFIG_EXAMPLE_USE_INTERNAL_ETHERNET 1
+
 static const char *TAG = "eth_example";
 
 /** Event handler for Ethernet events */
@@ -62,11 +65,8 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "~~~~~~~~~~~");
 }
 
-void app_main()
+void ether_app_main()
 {
-    tcpip_adapter_init();
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(tcpip_adapter_set_default_eth_handlers());
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
@@ -75,6 +75,7 @@ void app_main()
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 #if CONFIG_EXAMPLE_USE_INTERNAL_ETHERNET
     esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&mac_config);
+
 #if CONFIG_EXAMPLE_ETH_PHY_IP101
     esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
 #elif CONFIG_EXAMPLE_ETH_PHY_RTL8201
@@ -84,6 +85,7 @@ void app_main()
 #elif CONFIG_EXAMPLE_ETH_PHY_DP83848
     esp_eth_phy_t *phy = esp_eth_phy_new_dp83848(&phy_config);
 #endif
+
 #elif CONFIG_EXAMPLE_USE_SPI_ETHERNET
     gpio_install_isr_service(0);
     spi_device_handle_t spi_handle = NULL;
