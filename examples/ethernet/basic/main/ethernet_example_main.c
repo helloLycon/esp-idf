@@ -35,6 +35,14 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "Ethernet Link Up");
         ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
                  mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
+        ESP_LOGI(TAG, "Set static ip address...");
+        tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_ETH);
+        tcpip_adapter_ip_info_t ipInfo;
+        IP4_ADDR(&ipInfo.ip, 192, 168 , 2, 10);
+        IP4_ADDR(&ipInfo.gw, 192, 168 , 2, 1);
+        IP4_ADDR(&ipInfo.netmask, 255, 255 , 255, 0);
+        tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_ETH, &ipInfo);
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "Ethernet Link Down");
