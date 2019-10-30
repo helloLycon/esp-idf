@@ -37,47 +37,46 @@ static void tcp_server_task(void *pvParameters)
     int addr_family;
     int ip_protocol;
 
-    while (1) {
-
 #ifdef CONFIG_EXAMPLE_IPV4
-        struct sockaddr_in dest_addr;
-        dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(PORT);
-        addr_family = AF_INET;
-        ip_protocol = IPPROTO_IP;
-        inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(PORT);
+    addr_family = AF_INET;
+    ip_protocol = IPPROTO_IP;
+    inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
 #else // IPV6
-        struct sockaddr_in6 dest_addr;
-        bzero(&dest_addr.sin6_addr.un, sizeof(dest_addr.sin6_addr.un));
-        dest_addr.sin6_family = AF_INET6;
-        dest_addr.sin6_port = htons(PORT);
-        addr_family = AF_INET6;
-        ip_protocol = IPPROTO_IPV6;
-        inet6_ntoa_r(dest_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+    struct sockaddr_in6 dest_addr;
+    bzero(&dest_addr.sin6_addr.un, sizeof(dest_addr.sin6_addr.un));
+    dest_addr.sin6_family = AF_INET6;
+    dest_addr.sin6_port = htons(PORT);
+    addr_family = AF_INET6;
+    ip_protocol = IPPROTO_IPV6;
+    inet6_ntoa_r(dest_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
 #endif
 
-        int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
-        if (listen_sock < 0) {
-            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-            break;
-        }
-        ESP_LOGI(TAG, "Socket created");
+    int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
+    if (listen_sock < 0) {
+        ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+        goto fail;
+    }
+    ESP_LOGI(TAG, "Socket created");
 
-        int err = bind(listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-        if (err != 0) {
-            ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
-            break;
-        }
-        ESP_LOGI(TAG, "Socket bound, port %d", PORT);
+    int err = bind(listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    if (err != 0) {
+        ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno);
+        goto fail;
+    }
+    ESP_LOGI(TAG, "Socket bound, port %d", PORT);
 
-        err = listen(listen_sock, 1);
-        if (err != 0) {
-            ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
-            break;
-        }
-        ESP_LOGI(TAG, "Socket listening");
+    err = listen(listen_sock, 1);
+    if (err != 0) {
+        ESP_LOGE(TAG, "Error occurred during listen: errno %d", errno);
+        goto fail;
+    }
+    ESP_LOGI(TAG, "Socket listening");
 
+    while (1) {
         struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
         uint addr_len = sizeof(source_addr);
         int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
@@ -119,13 +118,9 @@ static void tcp_server_task(void *pvParameters)
                 }
             }
         }
-
-        if (sock != -1) {
-            ESP_LOGE(TAG, "Shutting down socket and restarting...");
-            shutdown(sock, 0);
-            close(sock);
-        }
     }
+
+fail:
     vTaskDelete(NULL);
 }
 
