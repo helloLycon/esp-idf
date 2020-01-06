@@ -133,8 +133,6 @@ void app_main()
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     const int wakeup_time_sec = 20;
-    printf("Enabling timer wakeup, %ds\n", wakeup_time_sec);
-    esp_sleep_enable_timer_wakeup(wakeup_time_sec * 1000000);
 
     const int ext_wakeup_pin_1 = 25;
     const uint64_t ext_wakeup_pin_1_mask = 1ULL << ext_wakeup_pin_1;
@@ -182,6 +180,7 @@ void app_main()
     start_ulp_temperature_monitoring();
 #endif
 
+    adc_power_off();
     esp_deep_sleep_start();
 }
 
