@@ -31,14 +31,14 @@ static const char *TAG = "i2c-example";
 #define I2C_SLAVE_TX_BUF_LEN (2 * DATA_LENGTH)              /*!< I2C slave tx buffer size */
 #define I2C_SLAVE_RX_BUF_LEN (2 * DATA_LENGTH)              /*!< I2C slave rx buffer size */
 
-#define I2C_MASTER_SCL_IO CONFIG_I2C_MASTER_SCL               /*!< gpio number for I2C master clock */
-#define I2C_MASTER_SDA_IO CONFIG_I2C_MASTER_SDA               /*!< gpio number for I2C master data  */
+#define I2C_MASTER_SCL_IO 14               /*!< gpio number for I2C master clock */
+#define I2C_MASTER_SDA_IO 13               /*!< gpio number for I2C master data  */
 #define I2C_MASTER_NUM I2C_NUMBER(CONFIG_I2C_MASTER_PORT_NUM) /*!< I2C port number for master dev */
 #define I2C_MASTER_FREQ_HZ CONFIG_I2C_MASTER_FREQUENCY        /*!< I2C master clock frequency */
 #define I2C_MASTER_TX_BUF_DISABLE 0                           /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE 0                           /*!< I2C master doesn't need buffer */
 
-#define BH1750_SENSOR_ADDR CONFIG_BH1750_ADDR   /*!< slave address for BH1750 sensor */
+#define BH1750_SENSOR_ADDR  0x51 /*0xa2*/   /*!< slave address for BH1750 sensor */
 #define BH1750_CMD_START CONFIG_BH1750_OPMODE   /*!< Operation mode */
 #define ESP_SLAVE_ADDR CONFIG_I2C_SLAVE_ADDRESS /*!< ESP32 slave address, you can set any 7bit value */
 #define WRITE_BIT I2C_MASTER_WRITE              /*!< I2C master write */
@@ -49,6 +49,15 @@ static const char *TAG = "i2c-example";
 #define NACK_VAL 0x1                            /*!< I2C nack value */
 
 SemaphoreHandle_t print_mux = NULL;
+
+typedef struct {
+    uint8_t sec;
+    uint8_t min;
+    uint8_t hour;
+    uint8_t day;
+    uint8_t month;
+    uint8_t year;
+} RtcStruct;
 
 /**
  * @brief test code to read esp-i2c-slave
@@ -100,6 +109,38 @@ static esp_err_t i2c_master_write_slave(i2c_port_t i2c_num, uint8_t *data_wr, si
     return ret;
 }
 
+int bcdToInt(uint8_t data) {
+    return (data>>4)*10 + (data&0x0f);
+}
+
+uint8_t intToBcd(int data) {
+    return ((data/10)<<4) | (data%10);
+}
+
+const char *pcf8563RtcToString(const uint8_t *pd, char *str) {
+    uint8_t sec = bcdToInt(pd[0] & 0x7f);
+    uint8_t min = bcdToInt(pd[1] & 0x7f);
+    uint8_t hour = bcdToInt(pd[2] & 0x3f);
+    uint8_t day = bcdToInt(pd[3] & 0x3f);
+    uint8_t weekday = pd[4] & 0x07;
+    uint8_t month = bcdToInt(pd[5] & 0x1f);
+    uint8_t year = bcdToInt(pd[6]);
+
+    sprintf(str, "20%02d-%02d-%02d %02d:%02d:%02d", year,month,day,hour,min,sec);
+    return str;
+}
+
+int pcf8563RtcToRegisters(const RtcStruct *rtcVal, uint8_t *reg) {
+    reg[0] = intToBcd(rtcVal->sec);
+    reg[1] = intToBcd(rtcVal->min);
+    reg[2] = intToBcd(rtcVal->hour);
+    reg[3] = intToBcd(rtcVal->day);
+    reg[4] = 1;
+    reg[5] = intToBcd(rtcVal->month);
+    reg[6] = intToBcd(rtcVal->year);
+    return 0;
+}
+
 /**
  * @brief test code to operate on BH1750 sensor
  *
@@ -113,13 +154,13 @@ static esp_err_t i2c_master_write_slave(i2c_port_t i2c_num, uint8_t *data_wr, si
  * | start | slave_addr + rd_bit + ack | read 1 byte + ack  | read 1 byte + nack | stop |
  * --------|---------------------------|--------------------|--------------------|------|
  */
-static esp_err_t i2c_master_sensor_test(i2c_port_t i2c_num, uint8_t *data_h, uint8_t *data_l)
+static esp_err_t pcf8563RtcRead(i2c_port_t i2c_num, uint8_t *data)
 {
     int ret;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, BH1750_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
-    i2c_master_write_byte(cmd, BH1750_CMD_START, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, 2, ACK_CHECK_EN);
     i2c_master_stop(cmd);
     ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
@@ -130,8 +171,44 @@ static esp_err_t i2c_master_sensor_test(i2c_port_t i2c_num, uint8_t *data_h, uin
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, BH1750_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
-    i2c_master_read_byte(cmd, data_h, ACK_VAL);
-    i2c_master_read_byte(cmd, data_l, NACK_VAL);
+
+    int regCnter;
+    for(regCnter=0; regCnter<6; regCnter++) {
+        i2c_master_read_byte(cmd, data+regCnter, ACK_VAL);
+    }
+    i2c_master_read_byte(cmd, data+regCnter, NACK_VAL);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
+
+/**
+ * @brief test code to operate on BH1750 sensor
+ *
+ * 1. set operation mode(e.g One time L-resolution mode)
+ * _________________________________________________________________
+ * | start | slave_addr + wr_bit + ack | write 1 byte + ack  | stop |
+ * --------|---------------------------|---------------------|------|
+ * 2. wait more than 24 ms
+ * 3. read data
+ * ______________________________________________________________________________________
+ * | start | slave_addr + rd_bit + ack | read 1 byte + ack  | read 1 byte + nack | stop |
+ * --------|---------------------------|--------------------|--------------------|------|
+ */
+static esp_err_t pcf8563RtcWrite(i2c_port_t i2c_num, const RtcStruct *rtcValue)
+{
+    int ret;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, BH1750_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, 2, ACK_CHECK_EN);
+
+    uint8_t reg[8];
+    pcf8563RtcToRegisters(rtcValue, reg);
+    for(int regCnter=0; regCnter<7; regCnter++) {
+        i2c_master_write_byte(cmd, reg[regCnter], ACK_CHECK_EN);
+    }
     i2c_master_stop(cmd);
     ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
@@ -197,33 +274,44 @@ static void i2c_test_task(void *arg)
     int i = 0;
     int ret;
     uint32_t task_idx = (uint32_t)arg;
-    uint8_t *data = (uint8_t *)malloc(DATA_LENGTH);
-    uint8_t *data_wr = (uint8_t *)malloc(DATA_LENGTH);
-    uint8_t *data_rd = (uint8_t *)malloc(DATA_LENGTH);
-    uint8_t sensor_data_h, sensor_data_l;
+    uint8_t regData[8];
     int cnt = 0;
+
+    RtcStruct rtcTime = {
+        .sec = 0,
+        .min = 59,
+        .hour = 23,
+        .day = 31,
+        .month = 12,
+        .year = 19,
+    };
+
+    ret = pcf8563RtcWrite(I2C_MASTER_NUM, &rtcTime);
+    if (ret == ESP_ERR_TIMEOUT) {
+        ESP_LOGE(TAG, "I2C Timeout");
+    } else if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "pcf write op okay");
+    } else {
+        ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
+    }
+    
     while (1) {
         ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_test(I2C_MASTER_NUM, &sensor_data_h, &sensor_data_l);
-        xSemaphoreTake(print_mux, portMAX_DELAY);
+        ret = pcf8563RtcRead(I2C_MASTER_NUM, regData);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
             printf("*******************\n");
             printf("TASK[%d]  MASTER READ SENSOR( BH1750 )\n", task_idx);
             printf("*******************\n");
-            printf("data_h: %02x\n", sensor_data_h);
-            printf("data_l: %02x\n", sensor_data_l);
-            printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
+            char timeStr[64];
+            printf("%s\n", pcf8563RtcToString(regData, timeStr));
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
-        xSemaphoreGive(print_mux);
-        vTaskDelay((DELAY_TIME_BETWEEN_ITEMS_MS * (task_idx + 1)) / portTICK_RATE_MS);
+        vTaskDelay((DELAY_TIME_BETWEEN_ITEMS_MS * 10)/ portTICK_RATE_MS);
         //---------------------------------------------------
-        for (i = 0; i < DATA_LENGTH; i++) {
-            data[i] = i;
-        }
+#if  0
         xSemaphoreTake(print_mux, portMAX_DELAY);
         size_t d_size = i2c_slave_write_buffer(I2C_SLAVE_NUM, data, RW_TEST_LENGTH, 1000 / portTICK_RATE_MS);
         if (d_size == 0) {
@@ -276,6 +364,7 @@ static void i2c_test_task(void *arg)
         }
         xSemaphoreGive(print_mux);
         vTaskDelay((DELAY_TIME_BETWEEN_ITEMS_MS * (task_idx + 1)) / portTICK_RATE_MS);
+#endif
     }
     vSemaphoreDelete(print_mux);
     vTaskDelete(NULL);
@@ -283,9 +372,6 @@ static void i2c_test_task(void *arg)
 
 void app_main()
 {
-    print_mux = xSemaphoreCreateMutex();
-    ESP_ERROR_CHECK(i2c_slave_init());
     ESP_ERROR_CHECK(i2c_master_init());
     xTaskCreate(i2c_test_task, "i2c_test_task_0", 1024 * 2, (void *)0, 10, NULL);
-    xTaskCreate(i2c_test_task, "i2c_test_task_1", 1024 * 2, (void *)1, 10, NULL);
 }
