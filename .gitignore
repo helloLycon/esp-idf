@@ -25,7 +25,7 @@ GPATH
 .DS_Store
 
 # Example project files
-examples/**/sdkconfig
+#examples/**/sdkconfig
 examples/**/sdkconfig.old
 examples/**/build
 
@@ -44,7 +44,7 @@ docs/_static/DejaVuSans.ttf
 docs/_static/NotoSansSC-Regular.otf
 
 # Unit test app files
-tools/unit-test-app/sdkconfig
+#tools/unit-test-app/sdkconfig
 tools/unit-test-app/sdkconfig.old
 tools/unit-test-app/build
 tools/unit-test-app/builds
