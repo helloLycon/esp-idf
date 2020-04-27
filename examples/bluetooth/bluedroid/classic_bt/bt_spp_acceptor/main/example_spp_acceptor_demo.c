@@ -39,6 +39,8 @@ static long data_num = 0;
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 
+static uint32_t handle = 0;
+
 static void print_speed(void)
 {
     float time_old_s = time_old.tv_sec + time_old.tv_usec / 1000000.0;
@@ -81,6 +83,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                  param->data_ind.len, param->data_ind.handle);
         esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
 #else
+        handle = param->data_ind.handle;
         gettimeofday(&time_new, NULL);
         data_num += param->data_ind.len;
         if (time_new.tv_sec - time_old.tv_sec >= 3) {
@@ -92,7 +95,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT");
         break;
     case ESP_SPP_WRITE_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
+        //ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
         break;
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
@@ -215,5 +218,15 @@ void app_main()
     esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_VARIABLE;
     esp_bt_pin_code_t pin_code;
     esp_bt_gap_set_pin(pin_type, 0, pin_code);
+
+    while(!handle) {
+        vTaskDelay(100);
+    }
+    for(int i=0;;i++) {
+        char buf[64];
+        sprintf(buf, "------------------------------>%d\n", i);
+        esp_spp_write(handle, strlen(buf), (uint8_t *)buf);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
+    }
 }
 
