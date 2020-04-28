@@ -5,6 +5,21 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
+#include <string.h>
+#include <sys/param.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "nvs_flash.h"
+#include "tcpip_adapter.h"
+    
+#include "lwip/err.h"
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include <lwip/netdb.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -31,6 +46,7 @@
 #define SPP_SHOW_SPEED 1
 #define SPP_SHOW_MODE SPP_SHOW_SPEED    /*Choose show mode: show data or speed*/
 
+static const char *TAG = "";
 static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
 
 static struct timeval time_new, time_old;
@@ -53,6 +69,9 @@ static const uint8_t inq_num_rsps = 0;
 #define SPP_DATA_LEN ESP_SPP_MAX_MTU
 #endif
 static uint8_t spp_data[SPP_DATA_LEN];
+
+extern void softap_tcps_app_main();
+
 
 static void print_speed(void)
 {
@@ -98,8 +117,11 @@ static bool get_name_from_eir(uint8_t *eir, char *bdname, uint8_t *bdname_len)
     return false;
 }
 
+uint32_t slave_handle = 0xffffffff;
+
 static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
+    extern int cli_sock;
     switch (event) {
     case ESP_SPP_INIT_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
@@ -116,7 +138,8 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
     case ESP_SPP_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT");
-        esp_spp_write(param->srv_open.handle, SPP_DATA_LEN, spp_data);
+        //esp_spp_write(param->srv_open.handle, SPP_DATA_LEN, spp_data);
+        slave_handle = param->srv_open.handle;
         gettimeofday(&time_old, NULL);
         break;
     case ESP_SPP_CLOSE_EVT:
@@ -129,14 +152,23 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
         break;
     case ESP_SPP_DATA_IND_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT");
+        //ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT");
+        if(cli_sock < 0) {
+            printf("server not connected\n");
+            break;
+        }
+        int err = send(cli_sock, param->data_ind.data, param->data_ind.len, 0);
+        if (err < 0) {
+            ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+            break;
+        }
         break;
     case ESP_SPP_CONG_EVT:
 #if (SPP_SHOW_MODE == SPP_SHOW_DATA)
         ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT cong=%d", param->cong.cong);
 #endif
         if (param->cong.cong == 0) {
-            esp_spp_write(param->cong.handle, SPP_DATA_LEN, spp_data);
+            //esp_spp_write(param->cong.handle, SPP_DATA_LEN, spp_data);
         }
         break;
     case ESP_SPP_WRITE_EVT:
@@ -151,7 +183,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         }
 #endif
         if (param->write.cong == 0) {
-            esp_spp_write(param->write.handle, SPP_DATA_LEN, spp_data);
+            //esp_spp_write(param->write.handle, SPP_DATA_LEN, spp_data);
         }
         break;
     case ESP_SPP_SRV_OPEN_EVT:
@@ -237,17 +269,21 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
 
 void app_main()
 {
+    softap_tcps_app_main();
     for (int i = 0; i < SPP_DATA_LEN; ++i) {
         spp_data[i] = i;
     }
 
+#if  0
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
+#endif
 
+    esp_err_t ret;
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();

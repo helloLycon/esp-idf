@@ -21,11 +21,46 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
+#include <string.h>
+#include <sys/param.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "nvs_flash.h"
+#include "tcpip_adapter.h"
+    
+#include "lwip/err.h"
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include <lwip/netdb.h>
+
+#include <stdint.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include "nvs.h"
+#include "nvs_flash.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_gap_bt_api.h"
+#include "esp_bt_device.h"
+#include "esp_spp_api.h"
+
+#include "time.h"
+#include "sys/time.h"
 
 
 #define PORT 5000
 
 static const char *TAG = "example";
+
+int cli_sock = -1;
 
 void softap_app_main();
 
@@ -85,6 +120,7 @@ static void tcp_server_task(void *pvParameters)
             break;
         }
         ESP_LOGI(TAG, "Socket accepted");
+        cli_sock = sock;
 
         while (1) {
             int len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
@@ -107,7 +143,13 @@ static void tcp_server_task(void *pvParameters)
                     inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
                 }
 
-                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+                extern uint32_t slave_handle;
+                if(slave_handle == 0xffffffff) {
+                    printf("slave not connected\n");
+                    continue;
+                }
+                esp_spp_write(slave_handle, len, (uint8_t *)rx_buffer);
+                /*rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
                 ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
                 ESP_LOGI(TAG, "%s", rx_buffer);
 
@@ -115,7 +157,7 @@ static void tcp_server_task(void *pvParameters)
                 if (err < 0) {
                     ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
                     break;
-                }
+                }*/
             }
         }
 
@@ -128,7 +170,7 @@ static void tcp_server_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-void app_main()
+void softap_tcps_app_main()
 {
     ESP_ERROR_CHECK(nvs_flash_init());
     tcpip_adapter_init();
