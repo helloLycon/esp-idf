@@ -39,7 +39,9 @@ static long data_num = 0;
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 
-static uint32_t handle = 0;
+static uint32_t ghandle = 0;
+
+char gbuf[2048];
 
 static void print_speed(void)
 {
@@ -78,7 +80,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
         break;
     case ESP_SPP_DATA_IND_EVT:
-#if (SPP_SHOW_MODE == SPP_SHOW_DATA)
+#if (1)
         ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",
                  param->data_ind.len, param->data_ind.handle);
         esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
@@ -98,7 +100,8 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         //ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
         break;
     case ESP_SPP_SRV_OPEN_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
+        ghandle = param->srv_open.handle;
+        ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT, handle = %d\n", ghandle);
         gettimeofday(&time_old, NULL);
         break;
     default:
@@ -159,6 +162,9 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 
 void app_main()
 {
+    for (uint32_t i=0;i<(sizeof(gbuf) / sizeof(gbuf[0])); i++) {
+        gbuf[i] = i;
+    }
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -219,14 +225,16 @@ void app_main()
     esp_bt_pin_code_t pin_code;
     esp_bt_gap_set_pin(pin_type, 0, pin_code);
 
-    while(!handle) {
-        vTaskDelay(100);
+    while(!ghandle) {
+        vTaskDelay(10/portTICK_PERIOD_MS);
     }
+    strcpy(gbuf, "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------00000000\n");
     for(int i=0;;i++) {
-        char buf[64];
-        sprintf(buf, "------------------------------>%d\n", i);
-        esp_spp_write(handle, strlen(buf), (uint8_t *)buf);
-        vTaskDelay(20 / portTICK_PERIOD_MS);
+        //char buf[64];
+        sprintf(gbuf+500, "%08d\n", i);
+        esp_spp_write(ghandle, 509, (uint8_t *)gbuf);
+        printf("write %d\n", i);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 }
 
