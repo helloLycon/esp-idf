@@ -154,7 +154,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_DATA_IND_EVT:
         //ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT");
         if(cli_sock < 0) {
-            printf("server not connected\n");
+            //printf("server not connected\n");
             break;
         }
         int err = send(cli_sock, param->data_ind.data, param->data_ind.len, 0);

@@ -66,10 +66,28 @@ void softap_app_main();
 
 static void tcp_server_task(void *pvParameters)
 {
+    extern bool sta_connect;
     char rx_buffer[128];
     char addr_str[128];
     int addr_family;
     int ip_protocol;
+
+
+    while(sta_connect == false) {
+        vTaskDelay(100);
+    }
+    
+    tcpip_adapter_ip_info_t ip_info;
+    //tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
+    //printf("ip = %#x\n", ip_info.ip.addr);
+    
+    ip_info.ip.addr = (88ul<<24) | (43ul<<16) | (168ul<<8) | 192ul;
+    ip_info.netmask.addr = (0ul<<24) | (255ul<<16) | (255ul<<8) | 255ul;
+    ip_info.gw.addr = (1ul<<24) | (43ul<<16) | (168ul<<8) | 192ul;
+
+    tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA);
+    esp_err_t err = tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
+    printf("err = %d\n", err);
 
     while (1) {
 
