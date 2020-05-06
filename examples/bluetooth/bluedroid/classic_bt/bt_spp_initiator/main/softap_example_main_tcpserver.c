@@ -170,6 +170,8 @@ static void tcp_server_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
+void sta_app_main();
+
 void softap_tcps_app_main()
 {
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -181,7 +183,8 @@ void softap_tcps_app_main()
      * examples/protocols/README.md for more information about this function.
      */
     //ESP_ERROR_CHECK(example_connect());
-    softap_app_main();
+    //softap_app_main();
+    sta_app_main();
 
     xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 5, NULL);
 }
