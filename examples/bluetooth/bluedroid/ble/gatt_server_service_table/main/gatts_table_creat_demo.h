@@ -18,7 +18,7 @@ enum
     IDX_SVC,
     IDX_CHAR_A,
     IDX_CHAR_VAL_A,
-    IDX_CHAR_CFG_A,
+    //IDX_CHAR_CFG_A,
 
     IDX_CHAR_B,
     IDX_CHAR_VAL_B,
