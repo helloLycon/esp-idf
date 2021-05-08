@@ -771,7 +771,21 @@ static void *malloc_internal_wrapper(size_t size)
 
 static int32_t IRAM_ATTR read_mac_wrapper(uint8_t mac[6])
 {
-    return esp_read_mac(mac, ESP_MAC_BT);
+    //esp_err_t err = esp_read_mac(mac, ESP_MAC_BT);
+    //const char *macstr = "18:01:F1:72:47:43";
+    const char *macstr = "ea:23:b4:4c:09:4f";
+    //const char *macstr = "23:2c:e0:71:b3:3c";
+    //const char *macstr = "97:58:52:1b:ff:c9";
+    //const char *macstr = "19:19:19:72:47:43";
+    int tmp[6];
+    sscanf(macstr, "%x:%x:%x:%x:%x:%x", tmp+0,tmp+1,tmp+2,tmp+3,tmp+4,tmp+5);
+    const unsigned char set[6] = {0x00, 0x23,0x23,0x23,0x23,0x23};
+
+    for(int i=0; i<6; i++) {
+        mac[i] = (unsigned char )tmp[i];
+    }
+    //memcpy(mac, set, 6);
+    return 0;
 }
 
 static void IRAM_ATTR srand_wrapper(unsigned int seed)
