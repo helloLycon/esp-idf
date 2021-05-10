@@ -446,6 +446,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                             notify_data[i] = i%0xff;
                         }
                         //the size of notify_data[] need less than MTU size
+                        printf("1\n");
                         esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_tab[char_idx].char_handle,
                                                 sizeof(notify_data), notify_data, false);
                     }
@@ -458,6 +459,7 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                             indicate_data[i] = i%0xff;
                         }
                         //the size of indicate_data[] need less than MTU size
+                        printf("2\n");
                         esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_A_APP_ID].char_tab[char_idx].char_handle,
                                                 sizeof(indicate_data), indicate_data, true);
                     }
@@ -597,6 +599,11 @@ static void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
     }
 }
 
+esp_gatt_if_t g_if;
+uint16_t g_conn_id;
+uint16_t g_handle;
+bool g_set = false;
+
 static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param) {
     switch (event) {
     case ESP_GATTS_REG_EVT:
@@ -638,8 +645,18 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                             notify_data[i] = i%0xff;
                         }
                         //the size of notify_data[] need less than MTU size
-                        esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_B_APP_ID].char_tab[0].char_handle,
-                                                sizeof(notify_data), notify_data, false);
+                        printf("3\n");
+                        for(;;) {
+                            esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_B_APP_ID].char_tab[0].char_handle,
+                                                    sizeof(notify_data), notify_data, false);
+                            g_if = gatts_if;
+                            g_conn_id = param->write.conn_id;
+                            g_handle = gl_profile_tab[PROFILE_B_APP_ID].char_tab[0].char_handle;
+                            g_set = true;
+                            /*vTaskDelay(50);
+                            break;*/
+                            break;
+                        }
                     }
                 }else if (descr_value == 0x0002){
                     if (b_property & ESP_GATT_CHAR_PROP_BIT_INDICATE){
@@ -650,6 +667,7 @@ static void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_i
                             indicate_data[i] = i%0xff;
                         }
                         //the size of indicate_data[] need less than MTU size
+                        printf("4\n");
                         esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, gl_profile_tab[PROFILE_B_APP_ID].char_tab[0].char_handle,
                                                 sizeof(indicate_data), indicate_data, true);
                     }
@@ -834,5 +852,26 @@ void app_main()
     }
 
     gatts_demo_gpio_init();
+
+    /*vTaskDelay(10000 / portTICK_PERIOD_MS);
+    printf("10s\n");*/
+    for(; g_set == false;) {
+        vTaskDelay(10);
+    }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+    unsigned char v[20];
+    int len = sizeof v;
+    for(int i=0; i<len; i++) {
+        v[i] = i;
+    }
+    for(int st = 0; ; st += len) {
+        esp_ble_gatts_send_indicate(g_if, g_conn_id, g_handle, len, v, false);
+        //vTaskDelay(1 / portTICK_PERIOD_MS);
+        printf("%d bytes sent\n", st);
+    }
+
+    /*esp_ble_gatts_send_indicate(gl_profile_tab[PROFILE_B_APP_ID].gatts_if, gl_profile_tab[appID].conn_id,
+gl_profile_tab[PROFILE_B_APP_ID].char_handle, len, v, false);*/
     return;
 }
