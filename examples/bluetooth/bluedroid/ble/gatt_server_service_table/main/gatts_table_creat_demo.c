@@ -30,6 +30,7 @@
 #include "esp_bt_main.h"
 #include "gatts_table_creat_demo.h"
 #include "esp_gatt_common_api.h"
+#include "uart_echo_example_main.h"
 
 #define GATTS_TABLE_TAG "GATTS_TABLE_DEMO"
 
@@ -573,4 +574,7 @@ void app_main()
     if (local_mtu_ret){
         ESP_LOGE(GATTS_TABLE_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
+
+	/* append */
+	uart_app_main();
 }
