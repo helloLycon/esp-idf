@@ -860,15 +860,18 @@ void app_main()
     }
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    unsigned char v[20];
+    unsigned char v[497];
     int len = sizeof v;
     for(int i=0; i<len; i++) {
         v[i] = i;
     }
-    for(int st = 0; ; st += len) {
+
+	vTaskDelay(5000 / portTICK_PERIOD_MS);
+    for(int pkts = 0; ; pkts++) {
+		v[0] = (uint8_t)pkts;
         esp_ble_gatts_send_indicate(g_if, g_conn_id, g_handle, len, v, false);
-        //vTaskDelay(1 / portTICK_PERIOD_MS);
-        printf("%d bytes sent\n", st);
+        printf("%d bytes / %d packets sent\n", pkts*len, pkts);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 
     /*esp_ble_gatts_send_indicate(gl_profile_tab[PROFILE_B_APP_ID].gatts_if, gl_profile_tab[appID].conn_id,
