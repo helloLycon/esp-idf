@@ -15,6 +15,7 @@
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "gatts_table_creat_demo.h"
 
 /**
  * This is an example which echos any data it receives on UART1 back to the sender,
@@ -75,16 +76,9 @@ int at_handler(char *data, int *p_offset) {
 }
 
 
-int ble_send_data(const uint8_t *data, int len) {
-    /* for debug */
-    esp_log_buffer_hex("----------------> send to ble", data, len);
-    return 0;
-}
-
-
 int at_send_data_handler(char *data, int *p_offset, int data_len, char *crlf) {
     uint8_t *data_buf = (uint8_t *)strchr(data + strlen(AT_SEND_DATA), ',') + 1;
-    if( ble_send_data(data_buf, data_len) < 0) {
+    if( ble_notify_interface_send(data_buf, data_len) != ESP_OK ) {
         uart_write_bytes(ECHO_UART_NUM, at_err, strlen(at_err));
     } else {
         uart_write_bytes(ECHO_UART_NUM, at_ok, strlen(at_ok));

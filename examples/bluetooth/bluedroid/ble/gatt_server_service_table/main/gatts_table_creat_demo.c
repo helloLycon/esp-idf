@@ -20,8 +20,10 @@
  #include "freertos/FreeRTOS.h"
  #include "freertos/task.h"
  #include "freertos/event_groups.h"
+ #include "freertos/semphr.h"
  #include "esp_system.h"
  #include "esp_log.h"
+ #include "esp_now.h"
  #include "nvs_flash.h"
  #include "esp_bt.h"
 
@@ -220,6 +222,34 @@ static const esp_gatts_attr_db_t gatt_db[HRS_IDX_NB] =
 
 };
 
+typedef struct {
+    esp_gatt_if_t gatts_if;
+    uint16_t conn_id;
+    uint16_t attr_handle;
+    bool notify_enabled;
+} GattsNotifyInterface;
+
+
+SemaphoreHandle_t notify_if_mutex;
+GattsNotifyInterface notify_if = {
+    .notify_enabled = false,
+};
+
+esp_err_t ble_notify_interface_send(const uint8_t *data, int len) {
+    if(xSemaphoreTake(notify_if_mutex, 10) != pdTRUE) {
+        ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreTake");
+    }
+    GattsNotifyInterface ntf = notify_if;
+    if(xSemaphoreGive(notify_if_mutex) != pdTRUE) {
+        ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreGive");
+    }
+    if(ntf.notify_enabled == false) {
+        return ESP_ERR_ESPNOW_NOT_INIT;
+    }
+    return esp_ble_gatts_send_indicate(ntf.gatts_if, ntf.conn_id, ntf.attr_handle, len, (uint8_t *)data, false);
+}
+
+
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     switch (event) {
@@ -389,7 +419,19 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 if (heart_rate_handle_table[IDX_CHAR_CFG_A] == param->write.handle && param->write.len == 2){
                     uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
                     if (descr_value == 0x0001){
+                        /* 更新notify接口参数 */
+                        if(xSemaphoreTake(notify_if_mutex, 10) != pdTRUE) {
+                            ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreTake");
+                        }
+                        notify_if.gatts_if = gatts_if;
+                        notify_if.conn_id = param->connect.conn_id;
+                        notify_if.attr_handle = heart_rate_handle_table[IDX_CHAR_VAL_A];
+                        notify_if.notify_enabled = true;
+                        if(xSemaphoreGive(notify_if_mutex) != pdTRUE) {
+                            ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreGive");
+                        }
                         ESP_LOGI(GATTS_TABLE_TAG, "notify enable");
+#if  0
                         uint8_t notify_data[15];
                         for (int i = 0; i < sizeof(notify_data); ++i)
                         {
@@ -398,6 +440,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         //the size of notify_data[] need less than MTU size
                         esp_ble_gatts_send_indicate(gatts_if, param->write.conn_id, heart_rate_handle_table[IDX_CHAR_VAL_A],
                                                 sizeof(notify_data), notify_data, false);
+#endif
                     }else if (descr_value == 0x0002){
                         ESP_LOGI(GATTS_TABLE_TAG, "indicate enable");
                         uint8_t indicate_data[15];
@@ -411,6 +454,14 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                     }
                     else if (descr_value == 0x0000){
                         ESP_LOGI(GATTS_TABLE_TAG, "notify/indicate disable ");
+                        /* 更新notify接口参数 */
+                        if(xSemaphoreTake(notify_if_mutex, 10) != pdTRUE) {
+                            ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreTake");
+                        }
+                        notify_if.notify_enabled = false;
+                        if(xSemaphoreGive(notify_if_mutex) != pdTRUE) {
+                            ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreGive");
+                        }
                     }else{
                         ESP_LOGE(GATTS_TABLE_TAG, "unknown descr value");
                         esp_log_buffer_hex(GATTS_TABLE_TAG, param->write.value, param->write.len);
@@ -435,7 +486,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_MTU_EVT, MTU %d", param->mtu.mtu);
             break;
         case ESP_GATTS_CONF_EVT:
-            ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_CONF_EVT, status = %d, attr_handle %d", param->conf.status, param->conf.handle);
+            //ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_CONF_EVT, status = %d, attr_handle %d", param->conf.status, param->conf.handle);
             break;
         case ESP_GATTS_START_EVT:
             ESP_LOGI(GATTS_TABLE_TAG, "SERVICE_START_EVT, status %d, service_handle %d", param->start.status, param->start.service_handle);
@@ -454,6 +505,14 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             esp_ble_gap_update_conn_params(&conn_params);
             break;
         case ESP_GATTS_DISCONNECT_EVT:
+            /* 更新notify接口参数 */
+            if(xSemaphoreTake(notify_if_mutex, 10) != pdTRUE) {
+                ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreTake");
+            }
+            notify_if.notify_enabled = false;
+            if(xSemaphoreGive(notify_if_mutex) != pdTRUE) {
+                ESP_LOGE(GATTS_TABLE_TAG, "xSemaphoreGive");
+            }
             ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_DISCONNECT_EVT, reason = 0x%x", param->disconnect.reason);
             esp_ble_gap_start_advertising(&adv_params);
             break;
@@ -525,6 +584,10 @@ void app_main()
     }
     ESP_ERROR_CHECK( ret );
 
+    if(NULL == (notify_if_mutex = xSemaphoreCreateMutex())) {
+        ESP_LOGE(GATTS_TABLE_TAG, "failed to create mutex");
+        return;
+    }
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();

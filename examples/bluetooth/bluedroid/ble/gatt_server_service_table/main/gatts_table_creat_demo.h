@@ -28,3 +28,8 @@ enum
 
     HRS_IDX_NB,
 };
+
+
+esp_err_t ble_notify_interface_send(const uint8_t *data, int len);
+
+
