@@ -16,6 +16,12 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "gatts_table_creat_demo.h"
+#include "uart_echo_example_main.h"
+
+
+
+esp_err_t  write_transmit_method(TransmitMethod method);
+
 
 /**
  * This is an example which echos any data it receives on UART1 back to the sender,
@@ -38,6 +44,8 @@
 #define BUF_SIZE (1024)
 
 #define  AT_ONLY              "at"
+#define  AT_TRANSMIT_METHOD_STR  "method"
+#define  AT_TRANSMIT_METHOD   "at+"AT_TRANSMIT_METHOD_STR"="
 #define  AT_SEND_DATA_CMD_STR "sdata"
 #define  AT_SEND_DATA         "at+"AT_SEND_DATA_CMD_STR"="
 
@@ -72,6 +80,18 @@ int pop_one_command(char *data, char *crlf, int *p_offset) {
 
 int at_handler(char *data, int *p_offset) {
     uart_write_bytes(ECHO_UART_NUM, at_ok, strlen(at_ok));
+    return 0;
+}
+
+int at_transmit_method_handler(char *data, int *p_offset) {
+    int value = atoi(data + strlen(AT_TRANSMIT_METHOD));
+    if(write_transmit_method((TransmitMethod)value) == ESP_OK) {
+        uart_write_bytes(ECHO_UART_NUM, at_ok, strlen(at_ok));
+        vTaskDelay(1000 / portTICK_RATE_MS);
+        esp_restart();
+    } else {
+        uart_write_bytes(ECHO_UART_NUM, at_err, strlen(at_err));
+    }
     return 0;
 }
 
@@ -152,6 +172,8 @@ int handle_uart_data(char *data, int *p_offset) {
         return 0;
     } else if(!strncasecmp(data, AT_ONLY, strlen(AT_ONLY)) && (data[strlen(AT_ONLY)] == '\r' || data[strlen(AT_ONLY)] == '\n' )) {
         at_handler(data, p_offset);
+    } else if(!strncasecmp(data, AT_TRANSMIT_METHOD, strlen(AT_TRANSMIT_METHOD))) {
+        at_transmit_method_handler(data, p_offset);
     } else {
         /* invalid AT command */
         uart_write_bytes(ECHO_UART_NUM, at_err, strlen(at_err));

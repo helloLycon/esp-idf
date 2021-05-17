@@ -10,6 +10,11 @@ void uart_app_main();
 
 
 
+typedef enum {
+    TRANSMIT_WIFI = 0,
+    TRANSMIT_BLE,
+} TransmitMethod;
+
 
 
 

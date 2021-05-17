@@ -572,10 +572,11 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     } while (0);
 }
 
-void app_main()
+void ble_app_main_init()
 {
     esp_err_t ret;
 
+#if  0
     /* Initialize NVS. */
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -583,6 +584,7 @@ void app_main()
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
+#endif
 
     if(NULL == (notify_if_mutex = xSemaphoreCreateMutex())) {
         ESP_LOGE(GATTS_TABLE_TAG, "failed to create mutex");
@@ -638,6 +640,8 @@ void app_main()
         ESP_LOGE(GATTS_TABLE_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
 
+#if  0
 	/* append */
 	uart_app_main();
+#endif
 }
