@@ -35,7 +35,7 @@
 #define ECHO_TEST_RTS  (UART_PIN_NO_CHANGE)
 #define ECHO_TEST_CTS  (UART_PIN_NO_CHANGE)
 
-#define BUF_SIZE (1024)
+#define BUF_SIZE (2048)
 
 #define  AT_ONLY              "at"
 #define  AT_SEND_DATA_CMD_STR "sdata"
@@ -77,11 +77,12 @@ int at_handler(char *data, int *p_offset) {
 
 
 int at_send_data_handler(char *data, int *p_offset, int data_len, char *crlf) {
-    uint8_t *data_buf = (uint8_t *)strchr(data + strlen(AT_SEND_DATA), ',') + 1;
+    //uint8_t *data_buf = (uint8_t *)strchr(data + strlen(AT_SEND_DATA), ',') + 1;
+    uint8_t *data_buf = (uint8_t *)data;
     if( ble_notify_interface_send(data_buf, data_len) != ESP_OK ) {
-        uart_write_bytes(ECHO_UART_NUM, at_err, strlen(at_err));
+        //uart_write_bytes(ECHO_UART_NUM, at_err, strlen(at_err));
     } else {
-        uart_write_bytes(ECHO_UART_NUM, at_ok, strlen(at_ok));
+        //uart_write_bytes(ECHO_UART_NUM, at_ok, strlen(at_ok));
     }
     return pop_one_command(data, crlf, p_offset);
 }
@@ -189,8 +190,9 @@ static void echo_task()
         offset += len;
         //hexdump("recv:", (const uint8_t *)data + offset - len, len);
         //printf("offset = %d\n", offset);
-        if(memmem(data + offset - len, len, "\r", 1) || memmem(data + offset - len, len, "\n", 1)) {
-            while(handle_uart_data(data, &offset));
+        char *crlf = memmem(data + offset - len, len, "\n", 1);
+        if(crlf) {
+            while(at_send_data_handler(data, &offset, crlf-data+1, crlf));
         }
     }
 }
