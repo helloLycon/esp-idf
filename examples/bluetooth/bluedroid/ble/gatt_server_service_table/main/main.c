@@ -13,6 +13,9 @@
 #define TRANSMIT_METHOD  "transmit_method"
 
 
+TransmitMethod  method;
+
+
 void ble_app_main_init();
 void tcpserver_app_main_init();
 void uart_app_main();
@@ -62,7 +65,6 @@ void app_main() {
         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
         return;
     }
-    TransmitMethod  method;
     err = nvs_get_i32(my_handle, TRANSMIT_METHOD, (int32_t *)&method);
     nvs_close(my_handle);
     if(err == ESP_OK && method == TRANSMIT_WIFI) {

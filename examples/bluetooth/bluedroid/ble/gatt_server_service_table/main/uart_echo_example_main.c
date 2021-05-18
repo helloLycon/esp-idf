@@ -17,6 +17,7 @@
 #include "esp_log.h"
 #include "gatts_table_creat_demo.h"
 #include "uart_echo_example_main.h"
+#include "softap_example_main.h"
 
 
 
@@ -97,8 +98,10 @@ int at_transmit_method_handler(char *data, int *p_offset) {
 
 
 int at_send_data_handler(char *data, int *p_offset, int data_len, char *crlf) {
+    extern TransmitMethod  method;
     uint8_t *data_buf = (uint8_t *)strchr(data + strlen(AT_SEND_DATA), ',') + 1;
-    if( ble_notify_interface_send(data_buf, data_len) != ESP_OK ) {
+    esp_err_t err = method==TRANSMIT_BLE?ble_notify_interface_send(data_buf, data_len):send_to_tcp_client(data_buf, data_len);
+    if( err != ESP_OK ) {
         uart_write_bytes(ECHO_UART_NUM, at_err, strlen(at_err));
     } else {
         uart_write_bytes(ECHO_UART_NUM, at_ok, strlen(at_ok));
