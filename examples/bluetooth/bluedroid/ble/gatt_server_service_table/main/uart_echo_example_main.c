@@ -191,8 +191,15 @@ static void echo_task()
         //hexdump("recv:", (const uint8_t *)data + offset - len, len);
         //printf("offset = %d\n", offset);
         char *crlf = memmem(data + offset - len, len, "\n", 1);
-        if(crlf) {
-            while(at_send_data_handler(data, &offset, crlf-data+1, crlf));
+        while(crlf) {
+            //while(at_send_data_handler(data, &offset, crlf-data+1, crlf));
+            ble_notify_interface_send((uint8_t *)data, crlf - data + 1);
+            char *next_cmd = crlf + 1;
+            int remain = data+offset-next_cmd;
+            memcpy(tmp_buf, next_cmd, remain);
+            memcpy(data, tmp_buf, remain);
+            offset = remain;
+            crlf = memmem(data, offset, "\n", 1);
         }
     }
 }
