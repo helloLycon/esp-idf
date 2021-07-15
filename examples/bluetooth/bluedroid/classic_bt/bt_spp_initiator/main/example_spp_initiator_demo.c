@@ -25,7 +25,7 @@
 #include "sys/time.h"
 
 #define SPP_TAG "SPP_INITIATOR_DEMO"
-#define EXCAMPLE_DEVICE_NAME "ESP_SPP_INITIATOR"
+#define EXCAMPLE_DEVICE_NAME "ESP_SPP_INITIATOR_____________"
 
 #define SPP_SHOW_DATA 0
 #define SPP_SHOW_SPEED 1
@@ -42,7 +42,7 @@ static const esp_spp_role_t role_master = ESP_SPP_ROLE_MASTER;
 static esp_bd_addr_t peer_bd_addr;
 static uint8_t peer_bdname_len;
 static char peer_bdname[ESP_BT_GAP_MAX_BDNAME_LEN + 1];
-static const char remote_device_name[] = "ESP_SPP_ACCEPTOR";
+static const char remote_device_name[] = "ESP_SPP_ACCEPTOR______________";
 static const esp_bt_inq_mode_t inq_mode = ESP_BT_INQ_MODE_GENERAL_INQUIRY;
 static const uint8_t inq_len = 30;
 static const uint8_t inq_num_rsps = 0;
