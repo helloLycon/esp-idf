@@ -104,14 +104,17 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_INIT_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
         esp_bt_dev_set_device_name(EXCAMPLE_DEVICE_NAME);
-        esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+        esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
         esp_bt_gap_start_discovery(inq_mode, inq_len, inq_num_rsps);
 
         break;
     case ESP_SPP_DISCOVERY_COMP_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT status=%d scn_num=%d",param->disc_comp.status, param->disc_comp.scn_num);
+        //ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT status=%d scn_num=%d",param->disc_comp.status, param->disc_comp.scn_num);
+        esp_bt_gap_start_discovery(inq_mode, inq_len, inq_num_rsps);
+        if(0) {
         if (param->disc_comp.status == ESP_SPP_SUCCESS) {
             esp_spp_connect(sec_mask, role_master, param->disc_comp.scn[0], peer_bd_addr);
+        }
         }
         break;
     case ESP_SPP_OPEN_EVT:
@@ -166,23 +169,28 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
 {
     switch(event){
     case ESP_BT_GAP_DISC_RES_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_DISC_RES_EVT");
-        esp_log_buffer_hex(SPP_TAG, param->disc_res.bda, ESP_BD_ADDR_LEN);
+        //ESP_LOGI(SPP_TAG, "ESP_BT_GAP_DISC_RES_EVT");
+        //esp_log_buffer_hex(SPP_TAG, param->disc_res.bda, ESP_BD_ADDR_LEN);
+        printf("%02x:%02x:%02x:%02x:%02x:%02x  ", param->disc_res.bda[0],param->disc_res.bda[1],param->disc_res.bda[2],param->disc_res.bda[3],param->disc_res.bda[4],param->disc_res.bda[5]);
         for (int i = 0; i < param->disc_res.num_prop; i++){
             if (param->disc_res.prop[i].type == ESP_BT_GAP_DEV_PROP_EIR
                 && get_name_from_eir(param->disc_res.prop[i].val, peer_bdname, &peer_bdname_len)){
-                esp_log_buffer_char(SPP_TAG, peer_bdname, peer_bdname_len);
+                //esp_log_buffer_char(SPP_TAG, peer_bdname, peer_bdname_len);
+                peer_bdname[peer_bdname_len] = '\0';
+                printf("%s", peer_bdname);
                 if (strlen(remote_device_name) == peer_bdname_len
                     && strncmp(peer_bdname, remote_device_name, peer_bdname_len) == 0) {
                     memcpy(peer_bd_addr, param->disc_res.bda, ESP_BD_ADDR_LEN);
                     esp_spp_start_discovery(peer_bd_addr);
-                    esp_bt_gap_cancel_discovery();
+                    //esp_bt_gap_cancel_discovery();
                 }
             }
         }
+        printf("\n");
         break;
     case ESP_BT_GAP_DISC_STATE_CHANGED_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_DISC_STATE_CHANGED_EVT");
+        //ESP_LOGI(SPP_TAG, "ESP_BT_GAP_DISC_STATE_CHANGED_EVT");
+        esp_spp_start_discovery(peer_bd_addr);
         break;
     case ESP_BT_GAP_RMT_SRVCS_EVT:
         ESP_LOGI(SPP_TAG, "ESP_BT_GAP_RMT_SRVCS_EVT");
