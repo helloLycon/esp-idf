@@ -669,6 +669,10 @@ static void bt_av_hdl_stack_evt(uint16_t event, void *p_param)
     }
 }
 
+
+void coex_spp_initiator_app_main();
+void coex_gattc_app_main();
+
 void app_main()
 {
     /* Initialize NVS — it is used to store PHY calibration data */
@@ -679,6 +683,7 @@ void app_main()
     }
     ESP_ERROR_CHECK(err);
 
+#if  0
     i2s_config_t i2s_config = {
 #ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
         .mode = I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN,
@@ -710,6 +715,7 @@ void app_main()
 
     i2s_set_pin(0, &pin_config);
 #endif
+#endif
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     if ((err = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
@@ -732,6 +738,7 @@ void app_main()
         return;
     }
 
+#if  0
     /* create application task */
     bt_app_task_start_up();
 
@@ -759,4 +766,8 @@ void app_main()
 
     //gatt server init
     ble_gatts_init();
+#else
+    coex_spp_initiator_app_main();
+    coex_gattc_app_main();
+#endif
 }
