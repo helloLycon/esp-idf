@@ -3,5 +3,6 @@ idf_component_register(SRCS "bt_app_av.c"
                             "main.c"
                             "coex_spp_initiator_demo.c"
                             "coex_gattc_demo.c"
+			    "coex_report_data_via_i2c.c"
                     INCLUDE_DIRS ".")
 

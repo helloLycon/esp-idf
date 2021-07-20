@@ -23,6 +23,7 @@
 
 #include "time.h"
 #include "sys/time.h"
+#include "coex_report_data_via_i2c.h"
 
 #define SPP_TAG "SPP_INITIATOR_DEMO"
 #define EXCAMPLE_DEVICE_NAME "ESP_SPP_INITIATOR_____________"
@@ -165,17 +166,33 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 
 static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
+    bool rdy;
+    btDev *append;
     switch(event){
     case ESP_BT_GAP_DISC_RES_EVT:
         //ESP_LOGI(SPP_TAG, "ESP_BT_GAP_DISC_RES_EVT");
         //esp_log_buffer_hex(SPP_TAG, param->disc_res.bda, ESP_BD_ADDR_LEN);
-        printf("      %02x:%02x:%02x:%02x:%02x:%02x  ", param->disc_res.bda[0],param->disc_res.bda[1],param->disc_res.bda[2],param->disc_res.bda[3],param->disc_res.bda[4],param->disc_res.bda[5]);
+        //printf("      %02x:%02x:%02x:%02x:%02x:%02x  \n", param->disc_res.bda[0],param->disc_res.bda[1],param->disc_res.bda[2],param->disc_res.bda[3],param->disc_res.bda[4],param->disc_res.bda[5]);
+        rdy = bt_msg_ready;
+        if(rdy) {
+            xSemaphoreTake(msg_mutex, portMAX_DELAY);
+            append =  (btDev *)(bt_msg.frame + bt_msg.total_len);
+            append->is_ble = 0;
+            memcpy(append->mac, param->disc_res.bda, 6);
+            append->name_len = 0;
+            bt_msg.total_len += sizeof(btDev);
+        }
         for (int i = 0; i < param->disc_res.num_prop; i++){
             if (param->disc_res.prop[i].type == ESP_BT_GAP_DEV_PROP_EIR
                 && get_name_from_eir(param->disc_res.prop[i].val, peer_bdname, &peer_bdname_len)){
                 //esp_log_buffer_char(SPP_TAG, peer_bdname, peer_bdname_len);
                 peer_bdname[peer_bdname_len] = '\0';
-                printf("\"%s\"", peer_bdname);
+                if(rdy) {
+                    append->name_len = peer_bdname_len;
+                    strcpy(append->name, peer_bdname);
+                    bt_msg.total_len += peer_bdname_len;
+                }
+                //printf("\"%s\"", peer_bdname);
                 if (strlen(remote_device_name) == peer_bdname_len
                     && strncmp(peer_bdname, remote_device_name, peer_bdname_len) == 0) {
                     memcpy(peer_bd_addr, param->disc_res.bda, ESP_BD_ADDR_LEN);
@@ -184,7 +201,11 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
                 }
             }
         }
-        printf("\n");
+        if(rdy) {
+            xSemaphoreGive(msg_mutex);
+        }
+        //printf("\n");
+        
         break;
     case ESP_BT_GAP_DISC_STATE_CHANGED_EVT:
         //ESP_LOGI(SPP_TAG, "ESP_BT_GAP_DISC_STATE_CHANGED_EVT");

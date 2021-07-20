@@ -32,6 +32,7 @@
 #include "esp_gatt_common_api.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "coex_report_data_via_i2c.h"
 
 #define GATTC_TAG "GATTC_DEMO"
 #define REMOTE_SERVICE_UUID        0x00FF
@@ -321,6 +322,8 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 {
     uint8_t *adv_name = NULL;
     uint8_t adv_name_len = 0;
+    bool rdy;
+    btDev *append;
     switch (event) {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
         //the unit of the duration is second
@@ -343,14 +346,29 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         case ESP_GAP_SEARCH_INQ_RES_EVT:
             //esp_log_buffer_hex(GATTC_TAG, scan_result->scan_rst.bda, 6);
             //ESP_LOGI(GATTC_TAG, "searched Adv Data Len %d, Scan Response Len %d", scan_result->scan_rst.adv_data_len, scan_result->scan_rst.scan_rsp_len);
-            printf("[ble] %02x:%02x:%02x:%02x:%02x:%02x  ", scan_result->scan_rst.bda[0],scan_result->scan_rst.bda[1],scan_result->scan_rst.bda[2],scan_result->scan_rst.bda[3],scan_result->scan_rst.bda[4],scan_result->scan_rst.bda[5]);
+            //printf("[ble] %02x:%02x:%02x:%02x:%02x:%02x  \n", scan_result->scan_rst.bda[0],scan_result->scan_rst.bda[1],scan_result->scan_rst.bda[2],scan_result->scan_rst.bda[3],scan_result->scan_rst.bda[4],scan_result->scan_rst.bda[5]);
+            rdy = bt_msg_ready;
+            if(rdy) {
+                xSemaphoreTake(msg_mutex, portMAX_DELAY);
+                append =  (btDev *)(bt_msg.frame + bt_msg.total_len);
+                append->is_ble = 1;
+                memcpy(append->mac, scan_result->scan_rst.bda, 6);
+                append->name_len = 0;
+                bt_msg.total_len += sizeof(btDev);
+            }
             adv_name = esp_ble_resolve_adv_data(scan_result->scan_rst.ble_adv,
                                                 ESP_BLE_AD_TYPE_NAME_CMPL, &adv_name_len);
             //ESP_LOGI(GATTC_TAG, "searched Device Name Len %d", adv_name_len);
             //esp_log_buffer_char(GATTC_TAG, adv_name, adv_name_len);
             memcpy(dev_name_for_print,  adv_name, adv_name_len);
             dev_name_for_print[adv_name_len] = '\0';
-            printf("\"%s\"\n", dev_name_for_print);
+            if(rdy) {
+                append->name_len = strlen(dev_name_for_print);
+                strcpy(append->name, dev_name_for_print);
+                bt_msg.total_len += strlen(dev_name_for_print);
+                xSemaphoreGive(msg_mutex);
+            }
+            //printf("\"%s\"\n", dev_name_for_print);
 
 #if CONFIG_EXAMPLE_DUMP_ADV_DATA_AND_SCAN_RESP
             if (scan_result->scan_rst.adv_data_len > 0) {

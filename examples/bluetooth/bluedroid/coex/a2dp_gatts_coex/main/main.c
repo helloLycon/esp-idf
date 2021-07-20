@@ -43,6 +43,7 @@
 #include "esp_gatts_api.h"
 #include "esp_bt_defs.h"
 #include "esp_gatt_common_api.h"
+#include "coex_report_data_via_i2c.h"
 
 #define BT_BLE_COEX_TAG             "BT_BLE_COEX"
 #define BT_DEVICE_NAME              "ESP_COEX_A2DP_DEMO"
@@ -769,5 +770,6 @@ void app_main()
 #else
     coex_spp_initiator_app_main();
     coex_gattc_app_main();
+    i2c_comm_app_main();
 #endif
 }
